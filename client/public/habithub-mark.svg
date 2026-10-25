@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">HabitHub mark</title>
+  <rect width="128" height="128" rx="34" fill="#213a31"/>
+  <g fill="#d6ed9b">
+    <path d="M32 35c0-6 5-11 11-11h10v10c0 6-5 11-11 11H32V35Z"/>
+    <path d="M75 24h10c6 0 11 5 11 11v10H85c-6 0-11-5-11-11V24Z" opacity=".78"/>
+    <path d="M32 74h10c6 0 11 5 11 11v10H43c-6 0-11-5-11-11V74Z" opacity=".58"/>
+    <path d="M74 85c0-6 5-11 11-11h11v10c0 6-5 11-11 11H74V85Z" opacity=".92"/>
+  </g>
+</svg>

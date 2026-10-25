@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Category {
+  health
+  study
+  fitness
+  mindfulness
+  other
+}
+
+enum Frequency {
+  daily
+  weekly
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  habits    Habit[]
+  checkIns  CheckIn[]
+}
+
+model Habit {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  category      Category  @default(other)
+  frequency     Frequency @default(daily)
+  targetPerWeek Int       @default(7)
+  tags          String[]
+  archived      Boolean   @default(false)
+  slug          String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  checkIns      CheckIn[]
+
+  @@index([userId, archived, createdAt(sort: Desc)])
+}
+
+model CheckIn {
+  id        Int      @id @default(autoincrement())
+  habitId   Int
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([userId, date(sort: Desc)])
+}
