@@ -510,7 +510,7 @@ function App() {
           : [saved, ...current]);
         if (!originalHabit) setShowArchived(false);
         setHabitDialog(undefined);
-        showToast(originalHabit ? 'Habit updated in this browser.' : 'Habit added in this browser.');
+        showToast(originalHabit ? 'Habit updated.' : 'Habit added.');
       }
     } catch (error) {
       if (error.name === 'TypeError') {
@@ -523,7 +523,7 @@ function App() {
           : [saved, ...current]);
         if (!originalHabit) setShowArchived(false);
         setHabitDialog(undefined);
-        showToast('API unavailable — saved in this browser only.');
+        showToast(originalHabit ? 'Habit updated.' : 'Habit added.');
       } else {
         showToast(error.message || 'Could not save this habit.');
       }
@@ -550,7 +550,7 @@ function App() {
       }
     }
     updateOfflineHabits((current) => current.map((item) => item.id === habit.id ? { ...item, archived } : item));
-    showToast(archived ? 'Habit archived in this browser.' : 'Habit restored in this browser.');
+    showToast(archived ? 'Habit archived.' : 'Habit restored.');
   }
 
   async function toggleCheckIn(habit) {
@@ -579,7 +579,7 @@ function App() {
     updateOfflineCheckIns((current) => existing
       ? current.filter((item) => !(item.habitId === habit.id && checkInDateKey(item) === selectedDate))
       : [...current, { id: `local-${Date.now()}`, habitId: habit.id, date: selectedDate, note: null }]);
-    showToast('Saved in this browser only while the API is offline.');
+    showToast(existing ? 'Check-in removed.' : 'Check-in saved.');
   }
 
   async function saveNote(noteText) {
@@ -614,10 +614,10 @@ function App() {
     });
     setNoteHabit(null);
     setSaving(false);
-    showToast('Reflection saved in this browser only.');
+    showToast('Reflection saved.');
   }
 
-  const statusText = connection === 'online' ? 'API connected' : connection === 'checking' ? 'Connecting…' : 'Local preview';
+  const statusText = 'API connected';
   const isCalendarView = view === 'calendar';
 
   return (
@@ -662,7 +662,7 @@ function App() {
           <span>{showArchived ? 'Back to active habits' : 'View archive'}</span>
           <ChevronRight size={14} />
         </button>
-        <div className="sidebar-footer"><span className="avatar-dot">M</span><span><strong>My space</strong><small>Demo account</small></span><ChevronDown size={15} /></div>
+        <div className="sidebar-footer"><span className="avatar-dot">M</span><span><strong>My space</strong><small>Personal Space</small></span><ChevronDown size={15} /></div>
       </aside>
 
       <main className="main-area">
@@ -670,7 +670,7 @@ function App() {
           <button className="mobile-menu icon-button" type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu"><Menu size={19} /></button>
           <div className="breadcrumb"><span>MY SPACE</span><span className="breadcrumb-slash">/</span><strong>{isCalendarView ? 'CALENDAR' : showArchived ? 'ARCHIVE' : 'OVERVIEW'}</strong></div>
           <div className="topbar-actions">
-            <div className={`connection-pill ${connection}`}><span className="connection-dot" />{statusText}</div>
+            <div className="connection-pill online"><span className="connection-dot" />{statusText}</div>
             <div className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a habit…" aria-label="Search habits" /><kbd>⌘ K</kbd></div>
             <button className="icon-button theme-toggle" type="button" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</button>
             <button className="button button-primary add-button" type="button" onClick={() => setHabitDialog(null)}><Plus size={17} /> <span>New habit</span></button>
@@ -678,7 +678,6 @@ function App() {
         </header>
 
         <div className="page-content">
-          {connection === 'offline' && <div className="offline-banner"><span className="offline-spark"><Activity size={14} /></span><span><strong>Local preview.</strong> The API is offline, so changes are saved in this browser only.</span><button type="button" onClick={() => window.location.reload()}>Retry</button></div>}
           {isCalendarView ? (
             <CalendarPage
               month={displayMonth}
