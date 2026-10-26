@@ -72,5 +72,6 @@ export async function update(userId, id, body) {
 
 export async function remove(userId, id) {
   await getOne(userId, id);
+  await prisma.checkIn.deleteMany({ where: { habitId: id } });
   await prisma.habit.delete({ where: { id } });
 }

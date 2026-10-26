@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  AlertTriangle,
   Archive,
   ArchiveRestore,
   ArrowRight,
@@ -27,6 +28,7 @@ import {
   X,
   Brain,
   PenLine,
+  Trash2,
 } from 'lucide-react';
 import { api } from './api.js';
 import { readDemoSnapshot, saveDemoSnapshot } from './demoStore.js';
@@ -249,6 +251,7 @@ function HabitRow({
   onToggle,
   onEdit,
   onArchive,
+  onDelete,
   onNote,
   disabled,
 }) {
@@ -278,6 +281,9 @@ function HabitRow({
         <button className="icon-button archive-action" type="button" onClick={() => onArchive(habit)} aria-label={habit.archived ? 'Restore habit' : 'Archive habit'} title={habit.archived ? 'Restore habit' : 'Archive habit'}>
           {habit.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
         </button>
+        <button className="icon-button delete-action" type="button" onClick={() => onDelete(habit)} aria-label="Delete habit" title="Delete habit">
+          <Trash2 size={15} />
+        </button>
         <button
           className={`check-button ${completed ? 'checked' : ''}`}
           type="button"
@@ -292,7 +298,7 @@ function HabitRow({
   );
 }
 
-function HabitDialog({ habit, onClose, onSave, saving }) {
+function HabitDialog({ habit, onClose, onSave, onDelete, saving }) {
   const [form, setForm] = useState(() => ({
     name: habit?.name || '',
     description: habit?.description || '',
@@ -344,7 +350,23 @@ function HabitDialog({ habit, onClose, onSave, saving }) {
           {form.frequency === 'weekly' && <label className="field-label">Weekly target <span>{form.targetPerWeek} days</span><input type="range" min="1" max="7" value={form.targetPerWeek} onChange={(event) => update('targetPerWeek', event.target.value)} className="range-input" /></label>}
           <label className="field-label">Tags <span>up to 5, separated by commas</span><input value={form.tags} onChange={(event) => update('tags', event.target.value)} placeholder="wellness, morning" /></label>
           {error && <p className="form-error">{error}</p>}
-          <div className="dialog-actions"><button type="button" className="button button-quiet" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : habit ? 'Save changes' : 'Add this habit'}<ArrowRight size={15} /></button></div>
+          <div className="dialog-actions">
+            {habit && (
+              <button
+                type="button"
+                className="button button-danger-outline"
+                onClick={() => {
+                  onDelete(habit);
+                  onClose();
+                }}
+                disabled={saving}
+              >
+                <Trash2 size={13} /> Delete habit
+              </button>
+            )}
+            <button type="button" className="button button-quiet" onClick={onClose}>Cancel</button>
+            <button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : habit ? 'Save changes' : 'Add this habit'}<ArrowRight size={15} /></button>
+          </div>
         </form>
       </section>
     </div>
@@ -369,6 +391,49 @@ function NoteDialog({ habit, checkIn, date, onClose, onSave, saving }) {
   );
 }
 
+function ConfirmDeleteDialog({ habit, onClose, onConfirm, deleting }) {
+  if (!habit) return null;
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+        <div className="dialog-topline">
+          <span className="dialog-kicker danger-kicker">CONFIRM DELETION</span>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close dialog"><X size={18} /></button>
+        </div>
+        <div className="dialog-heading">
+          <div className="dialog-mark danger-mark"><Trash2 size={20} /></div>
+          <div>
+            <h2 id="confirm-dialog-title">Delete habit</h2>
+            <p>This action cannot be undone.</p>
+          </div>
+        </div>
+        <div className="confirm-body">
+          <p>Are you sure you want to permanently delete <strong>“{habit.name}”</strong>?</p>
+          <div className="confirm-warning-box">
+            <AlertTriangle size={16} />
+            <span>All check-in history, notes, and streak progress for this habit will be permanently deleted.</span>
+          </div>
+        </div>
+        <div className="dialog-actions">
+          <button type="button" className="button button-quiet" onClick={onClose} disabled={deleting}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="button button-danger"
+            onClick={() => onConfirm(habit)}
+            disabled={deleting}
+            autoFocus
+          >
+            <Trash2 size={14} />
+            {deleting ? 'Deleting…' : 'Delete habit'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const initialSnapshot = useMemo(() => readDemoSnapshot(), []);
   const [habits, setHabits] = useState(initialSnapshot.habits);
@@ -383,6 +448,8 @@ function App() {
   const [search, setSearch] = useState('');
   const [habitDialog, setHabitDialog] = useState(undefined);
   const [noteHabit, setNoteHabit] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -553,6 +620,42 @@ function App() {
     showToast(archived ? 'Habit archived.' : 'Habit restored.');
   }
 
+  function promptDeleteHabit(habit) {
+    setDeleteTarget(habit);
+  }
+
+  async function confirmDeleteHabit(habit) {
+    if (!habit) return;
+    setDeleting(true);
+    try {
+      if (connection === 'online') {
+        try {
+          await api.deleteHabit(habit.id);
+          setHabits((current) => current.filter((item) => item.id !== habit.id));
+          setCheckIns((current) => current.filter((item) => item.habitId !== habit.id));
+          showToast('Habit deleted.');
+          setDeleteTarget(null);
+          return;
+        } catch (error) {
+          if (error.name !== 'TypeError') {
+            showToast(error.message || 'Could not delete this habit.');
+            return;
+          }
+          setConnection('offline');
+        }
+      }
+      const nextHabits = habits.filter((item) => item.id !== habit.id);
+      const nextCheckIns = checkIns.filter((item) => item.habitId !== habit.id);
+      setHabits(nextHabits);
+      setCheckIns(nextCheckIns);
+      saveOfflineSnapshot(nextHabits, nextCheckIns);
+      showToast('Habit deleted.');
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function toggleCheckIn(habit) {
     const existing = checkInFor(habit.id, selectedDate);
     if (connection === 'online') {
@@ -691,6 +794,7 @@ function App() {
               onToggle={toggleCheckIn}
               onEdit={(habit) => setHabitDialog(habit)}
               onArchive={archiveHabit}
+              onDelete={promptDeleteHabit}
               onNote={(habit) => setNoteHabit(habit)}
               checkInFor={checkInFor}
               streakFor={(id) => getStreak(id, checkIns)}
@@ -717,6 +821,7 @@ function App() {
               onToggle={toggleCheckIn}
               onEdit={(habit) => setHabitDialog(habit)}
               onArchive={archiveHabit}
+              onDelete={promptDeleteHabit}
               onNote={(habit) => setNoteHabit(habit)}
               checkInFor={checkInFor}
               streakFor={(id) => getStreak(id, checkIns)}
@@ -726,8 +831,9 @@ function App() {
         </div>
       </main>
 
-      {habitDialog !== undefined && <HabitDialog habit={habitDialog} onClose={() => setHabitDialog(undefined)} onSave={saveHabit} saving={saving} />}
+      {habitDialog !== undefined && <HabitDialog habit={habitDialog} onClose={() => setHabitDialog(undefined)} onSave={saveHabit} onDelete={promptDeleteHabit} saving={saving} />}
       {noteHabit && <NoteDialog key={`${noteHabit.id}-${selectedDate}`} habit={noteHabit} checkIn={checkInFor(noteHabit.id, selectedDate)} date={selectedDate} onClose={() => setNoteHabit(null)} onSave={saveNote} saving={saving} />}
+      {deleteTarget && <ConfirmDeleteDialog habit={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={confirmDeleteHabit} deleting={deleting} />}
       {toast && <div className="toast-message" role="status"><span><Check size={14} /></span>{toast}</div>}
     </div>
   );
@@ -753,6 +859,7 @@ function OverviewPage({
   onToggle,
   onEdit,
   onArchive,
+  onDelete,
   onNote,
   checkInFor,
   streakFor,
@@ -807,6 +914,7 @@ function OverviewPage({
                 onToggle={onToggle}
                 onEdit={onEdit}
                 onArchive={onArchive}
+                onDelete={onDelete}
                 onNote={onNote}
                 disabled={loading}
               />;
@@ -848,6 +956,7 @@ function CalendarPage({
   onToggle,
   onEdit,
   onArchive,
+  onDelete,
   onNote,
   checkInFor,
   streakFor,
@@ -873,7 +982,7 @@ function CalendarPage({
           <div className="day-habits-list">
             {habits.map((habit) => {
               const record = checkInFor(habit.id, selectedDate);
-              return <HabitRow key={habit.id} habit={habit} date={selectedDate} completed={Boolean(record)} checkIn={record} streak={streakFor(habit.id)} onToggle={onToggle} onEdit={onEdit} onArchive={onArchive} onNote={onNote} disabled={disabled} />;
+              return <HabitRow key={habit.id} habit={habit} date={selectedDate} completed={Boolean(record)} checkIn={record} streak={streakFor(habit.id)} onToggle={onToggle} onEdit={onEdit} onArchive={onArchive} onDelete={onDelete} onNote={onNote} disabled={disabled} />;
             })}
             {!habits.length && <div className="empty-state compact-empty"><div className="empty-mark"><Target size={20} /></div><h3>{categoryFilter === 'all' ? 'No rituals yet' : 'Nothing here yet'}</h3><p>Add a habit to start making memories on your calendar.</p></div>}
           </div>

@@ -1,5 +1,7 @@
 # HabitHub
 
+DEPLOYED LINK-https://habit-hub-phi.vercel.app/
+
 HabitHub is a personal habit tracker built on the existing project stack: React + Vite, Express 5, Prisma 5, and PostgreSQL. The client and server remain separate folders. The client includes a cleaner navy-and-teal dashboard, category filters, habit creation/editing, daily check-ins with optional reflections, archiving, calendar history, and a persistent light/dark theme toggle.
 
 ## Requirements

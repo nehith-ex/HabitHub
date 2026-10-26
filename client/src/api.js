@@ -37,4 +37,5 @@ export const api = {
     body: JSON.stringify({ date, note }),
   }),
   removeCheckIn: (habitId, date) => request(`/check-ins/habits/${habitId}/${date}`, { method: 'DELETE' }),
+  deleteHabit: (id) => request(`/habits/${id}`, { method: 'DELETE' }),
 };
